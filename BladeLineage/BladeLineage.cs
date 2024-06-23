@@ -240,55 +240,6 @@ namespace BladeLineage
             }
         }
 
-        public static void UIInvitationRightMainPanel_SetCustomInvToggle(UIInvitationRightMainPanel __instance, bool ison)
-        {
-            if (BladeLineage.BladeStory)
-            {
-                (__instance.GetType().GetField("_workshopInvitationToggle", AccessTools.all).GetValue(__instance) as Toggle).isOn = true;
-            }
-        }
-
-        public static bool UIStoryProgressPanel_SelectedSlot(UIStoryProgressPanel __instance,UIStoryProgressIconSlot slot, bool isSelected)
-        {
-            if (slot._storyData[0].storyType == "blade1" && UI.UIController.Instance.CurrentUIPhase == UIPhase.Invitation && isSelected)
-            {
-                BladeLineage.BladeStory = true;
-            }
-            else
-            {
-                BladeLineage.BladeStory = false;
-            }
-            return true;
-        }
-
-        public static void UIStoryProgressPanel_SetStoryLine(UIStoryProgressPanel __instance)
-        {
-            ((ScrollRect)__instance.GetType().GetField("scroll_viewPort", AccessTools.all).GetValue(__instance)).movementType = ScrollRect.MovementType.Unrestricted;
-            if (BladeLineage.Init)
-            {
-                BladeLineage.Storyslots = new Dictionary<List<StageClassInfo>, UIStoryProgressIconSlot>();
-                BladeLineage.CreateStory(__instance);
-                BladeLineage.Init = false;
-                BladeLineage.uIPhase = UI.UIController.Instance.CurrentUIPhase;
-            }
-            else if (BladeLineage.StoryInit && BladeLineage.uIPhase != UI.UIController.Instance.CurrentUIPhase)
-            {
-                BladeLineage.CreateStory(__instance);
-                BladeLineage.StoryInit = false;
-            }
-            foreach (List<StageClassInfo> list in BladeLineage.Storyslots.Keys)
-            {
-                BladeLineage.Storyslots[list].SetSlotData(list);
-                if (list[0].currentState != StoryState.Close)
-                {
-                    BladeLineage.Storyslots[list].SetActiveStory(true);
-                }
-                else
-                {
-                    BladeLineage.Storyslots[list].SetActiveStory(false);
-                }
-            }
-        }
         public static Dictionary<string, Sprite> ArtWorks = new Dictionary<string, Sprite>();
         public static Dictionary<List<StageClassInfo>, UIStoryProgressIconSlot> Storyslots;
         public static UIPhase uIPhase;
