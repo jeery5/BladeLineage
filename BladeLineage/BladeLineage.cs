@@ -412,14 +412,14 @@ namespace BladeLineageInitializer
         }
     }
 
-    public class DiceCardAbility_Bleeding3Paralysis1 : DiceCardAbilityBase
+    public class DiceCardAbility_Bleeding3Paralysis2 : DiceCardAbilityBase
     {
-        public static string Desc = "[적중] 출혈 3과 마비 1 부여";
+        public static string Desc = "[적중] 출혈 3과 마비 2 부여";
 
         public override void OnSucceedAttack(BattleUnitModel target)
         {
             target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 3, base.owner);
-            target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Paralysis, 1, base.owner);
+            target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Paralysis, 2, base.owner);
         }
     }
 
@@ -465,7 +465,7 @@ namespace BladeLineageInitializer
         }
     }
 
-    public class DiceCardAbility_AddCard : DiceCardAbilityBase
+    public class DiceCardAbility_AddCard : DiceCardAbilityBase // 고장남
     {
         public static string Desc = "[합 패배] 자신의 패에 '골단' 추가";
 
@@ -497,6 +497,26 @@ namespace BladeLineageInitializer
 
         }
     }
+    
+    public class DiceCardAbility_Bleeding3 : DiceCardAbilityBase
+    {
+        public static string Desc = "[적중] 다음 막에 출혈 3 부여";
+
+        public override void OnSucceedAttack()
+        {
+            base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 3, base.owner);
+        }
+    }
+
+    public class DiceCardAbility_Bleeding5 : DiceCardAbilityBase
+    {
+        public static string Desc = "[적중] 다음 막에 출혈 5 부여";
+
+        public override void OnSucceedAttack()
+        {
+            base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 5, base.owner);
+        }
+    }
 
     public class DiceCardAbility_SlashPowerUp_OnWinParrying : DiceCardAbilityBase
     {
@@ -505,6 +525,26 @@ namespace BladeLineageInitializer
         public override void OnWinParrying()
         {
             base.card.owner.bufListDetail.AddKeywordBufByCard(KeywordBuf.SlashPowerUp, 1, base.owner);
+        }
+    }
+
+    public class DiceCardAbility_SlashPowerUp2_OnWinParrying : DiceCardAbilityBase
+    {
+        public static string Desc = "[합 승리] 다음 막에 참격 위력 증가 2을 얻음";
+
+        public override void OnWinParrying()
+        {
+            base.card.owner.bufListDetail.AddKeywordBufByCard(KeywordBuf.SlashPowerUp, 2, base.owner);
+        }
+    }
+
+    public class DiceCardAbility_PenetratePowerUp_OnWinParrying : DiceCardAbilityBase
+    {
+        public static string Desc = "[합 승리] 다음 막에 참격 위력 증가 1을 얻음";
+
+        public override void OnWinParrying()
+        {
+            base.card.owner.bufListDetail.AddKeywordBufByCard(KeywordBuf.PenetratePowerUp, 1, base.owner);
         }
     }
 
@@ -549,6 +589,17 @@ namespace BladeLineageInitializer
         {
             BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 4);
+        }
+    }
+    
+    public class DiceCardAbility_Poise5 : DiceCardAbilityBase
+    {
+        public static string Desc = "[적중] 호흡 5를 얻음";
+
+        public override void OnSucceedAttack()
+        {
+            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            BattleUnitBuf_Poise.AddPoise(base.owner, 5);
         }
     }
 
@@ -632,7 +683,9 @@ namespace BladeLineageInitializer
             this.stack = 0;
         }
     }
-
+    
+    // 호흡딜 1.5배로 버프 - 추가의견
+    
     public class BattleUnitBuf_Poise : BattleUnitBuf
     {
         protected override string keywordId
@@ -664,7 +717,7 @@ namespace BladeLineageInitializer
             {
                 behavior.ApplyDiceStatBonus(new DiceStatBonus
                 {
-                    dmgRate = 40
+                    dmgRate = 50
                 });
                 this.stack--;
             }
