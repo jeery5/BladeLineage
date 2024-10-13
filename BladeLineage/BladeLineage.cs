@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using BladeLineageInitializer;
+using HarmonyLib;
 using LOR_DiceSystem;
 using LOR_XML;
 using System;
@@ -22,8 +23,8 @@ namespace BladeLineageInitializer
         public override void OnInitializeMod()
         {
             base.OnInitializeMod();
-            var harmony = new Harmony("LOR.BladeLineage.MOD");
-            var method = typeof(BladeLineageInit).GetMethod("BookModel_SetXmlInfo");
+            Harmony harmony = new Harmony("LOR.BladeLineage.MOD");
+            MethodInfo method = typeof(BladeLineageInit).GetMethod("BookModel_SetXmlInfo");
             harmony.Patch(typeof(BookModel).GetMethod("SetXmlInfo", AccessTools.all), null, new HarmonyMethod(method),null, null, null);
             BladeLineageInit.Path = System.IO.Path.GetDirectoryName(Uri.UnescapeDataString(new UriBuilder(Assembly.GetExecutingAssembly().CodeBase).Path));
             BladeLineageInit.Language = GlobalGameManager.Instance.CurrentOption.language;
@@ -45,6 +46,15 @@ namespace BladeLineageInitializer
                         BattleEffectText battleEffectText = battleEffectTextRoot.effectTextList[j];
                         dictionary.Add(battleEffectText.ID, battleEffectText);
                     }
+                }
+            }
+            files = new DirectoryInfo(BladeLineageInit.Path + "/Localize/" + BladeLineageInit.Language + "/BattleDialogues").GetFiles();
+            for (int k = 0; k < files.Length; k++)
+            {
+                using (StringReader stringReader2 = new StringReader(File.ReadAllText(files[k].FullName)))
+                {
+                    BattleDialogRoot battleDialogRoot = (BattleDialogRoot)new XmlSerializer(typeof(BattleDialogRoot)).Deserialize(stringReader2);
+                    ((Dictionary<string, BattleDialogRoot>)typeof(BattleDialogXmlList).GetField("_dictionary", AccessTools.all).GetValue(Singleton<BattleDialogXmlList>.Instance))[battleDialogRoot.groupName] = battleDialogRoot;
                 }
             }
         }
@@ -72,11 +82,13 @@ namespace BladeLineageInitializer
 
         public static void BookModel_SetXmlInfo(BookModel __instance, BookXmlInfo ____classInfo, ref List<DiceCardXmlInfo> ____onlyCards)
         {
-            if (__instance.BookId.packageId != BladeLineageInit.PackageId) return;
-            foreach (int id in ____classInfo.EquipEffect.OnlyCard)
+            if (__instance.BookId.packageId == BladeLineageInit.PackageId)
             {
-                DiceCardXmlInfo cardItem = ItemXmlDataList.instance.GetCardItem(new LorId(BladeLineageInit.PackageId, id), false);
-                ____onlyCards.Add(cardItem);
+                foreach (int id in ____classInfo.EquipEffect.OnlyCard)
+                {
+                    DiceCardXmlInfo cardItem = ItemXmlDataList.instance.GetCardItem(new LorId(BladeLineageInit.PackageId, id), false);
+                    ____onlyCards.Add(cardItem);
+                }
             }
         }
         public static string Path;
@@ -85,115 +97,64 @@ namespace BladeLineageInitializer
         public static string PackageId = "BladeLineage";
     }
 
-    public class PassiveAbiltiy_SwordOfTheHomeland : PassiveAbilityBase
-    {
-        public override void OnRoundStart()
-        {
-            List<BattleUnitModel> aliveList = BattleObjectManager.instance.GetAliveList(owner.faction);
-            int num = 2;
-            while (aliveList.Count > 0 && num > 0)
-            {
-                BattleUnitModel battleUnitModel = RandomUtil.SelectOne(aliveList);
-                aliveList.Remove(battleUnitModel);
-                battleUnitModel.bufListDetail.AddKeywordBufThisRoundByEtc(KeywordBuf.SlashPowerUp, 1);
-                num--;
-            }
-        }
-    }
-
     /// <summary>
-    /// PassiveAbilitys For Enemy
-    /// </summary> 
+    /// PassiveAbilities
+    /// </summary>
 
-    public class PassiveAbility_DistortedEmotion : PassiveAbilityBase
+    public class PassiveAbility_Coldness : PassiveAbilityBase
     {
-        public override void BeforeRollDice(BattleDiceBehavior behavior)
-        {
-            int emotionLevel = base.owner.emotionDetail.EmotionLevel;
-            if (IsAttackDice(behavior.Detail) && emotionLevel >= 3)
-            {
-                behavior.ApplyDiceStatBonus(new DiceStatBonus
-                {
-                    power = -1,
-                });
+        public override string debugDesc => "합 승리시 호흡 1 얻음";
 
-                if (IsAttackDice(behavior.Detail) && emotionLevel >= 5)
-                {
-                    behavior.ApplyDiceStatBonus(new DiceStatBonus
-                    {
-                        power = -3,
-                    });
-                }
-            }
+        public override void OnWinParrying(BattleDiceBehavior behavior)
+        {
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            BattleUnitBuf_Poise.AddPoise(base.owner, 1);
         }
     }
 
-    public class PassiveAbility_LostedHonor : PassiveAbilityBase
-    {
-        public override void BeforeRollDice(BattleDiceBehavior behavior)
-        {
-            switch (behavior.Detail)
-            {
-                case BehaviourDetail.Slash:
-                    owner.battleCardResultLog?.SetPassiveAbility(this);
-                    behavior.ApplyDiceStatBonus(new DiceStatBonus
-                    {
-                        power = 1,
-                    });
-                    break;
-            }
-
-            int emotionLevel = base.owner.emotionDetail.EmotionLevel;
-
-            if (emotionLevel >= 5)
-            {
-                behavior.ApplyDiceStatBonus(new DiceStatBonus
-                {
-                    power = -2,
-                });
-
-            }
-        }
-    }
 
     public class PassiveAbility_Unbending : PassiveAbilityBase
     {
         public override string debugDesc => "참격 위력+1, 참격 피해량+1";
 
-        public static string Desc = "참격 위력+1, 참격 피해량+1";
-
-        public override void BeforeGiveDamage(BattleDiceBehavior behavior)
+        public override void BeforeRollDice(BattleDiceBehavior behavior)
         {
             if (behavior.Detail != BehaviourDetail.Slash) return;
-            owner.battleCardResultLog?.SetPassiveAbility(this);
+            owner.ShowPassiveTypo(this);
             behavior.ApplyDiceStatBonus(new DiceStatBonus
             {
                 power = 1,
                 dmg = 1
             });
         }
-
     }
 
-    public class PassiveAbility_Coldness : PassiveAbilityBase
+    public class PassiveAbility_SwordPlay : PassiveAbilityBase
     {
-        public override string debugDesc => "합 승리시 호흡 1 얻음";
-
-        public static string Desc = "합 승리시 호흡 1 얻음";
-
-        public override void OnWinParrying(BattleDiceBehavior behavior)
+        public override void OnRoundStart()
         {
-            base.OnWinParrying(behavior);
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            BattleUnitBuf_Poise.AddPoise(base.owner, 1);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            if (battleUnitBuf.stack >= 0)
+            {
+                List<BattleUnitModel> aliveList = BattleObjectManager.instance.GetAliveList(owner.faction);
+                int num = 2; 
+                while (aliveList.Count > 0 && num > 0)
+                {
+                    BattleUnitModel battleUnitModel = RandomUtil.SelectOne(aliveList);
+                    aliveList.Remove(battleUnitModel);
+                    battleUnitModel.bufListDetail.AddReadyBuf(new BattleUnitBuf_SwordPlaySlashPowerUp());
+                    battleUnitModel.bufListDetail.AddReadyBuf(new BattleUnitBuf_SwordPlayPenetratingPowerUp());
+                    num--;
+                }
+            }
         }
     }
 
-    /// <summary>
-    /// DiceCardSelfAbilitys
-    /// </summary>
+/// <summary>
+/// DiceCardSelfAbilitys
+/// </summary>
 
-    public class DiceCardSelfAbility_Poise7Dmg1Draw1 : DiceCardSelfAbilityBase
+public class DiceCardSelfAbility_Poise7Dmg1Draw1 : DiceCardSelfAbilityBase
     {
         public static string Desc = "[사용시] 책장을 1장 뽑음, 자신의 호흡이 7 이상이라면 이 책장의 모든 주사위 위력 +1";
 
@@ -204,7 +165,7 @@ namespace BladeLineageInitializer
 
         public override void BeforeRollDice(BattleDiceBehavior behavior)
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             if (battleUnitBuf.stack >= 7)
             {
                 card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
@@ -237,7 +198,7 @@ namespace BladeLineageInitializer
 
         public override void BeforeRollDice(BattleDiceBehavior behavior)
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             if (battleUnitBuf.stack >= 7)
             {
                 card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
@@ -259,7 +220,7 @@ namespace BladeLineageInitializer
 
         public override void BeforeRollDice(BattleDiceBehavior behavior)
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             if (battleUnitBuf.stack >= 5)
             {
                 card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
@@ -276,7 +237,7 @@ namespace BladeLineageInitializer
 
         public override void BeforeRollDice(BattleDiceBehavior behavior)
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             if (battleUnitBuf.stack >= 8)
             {
                 card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
@@ -310,7 +271,7 @@ namespace BladeLineageInitializer
 
         public override void OnUseCard()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             this.card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
             {
                 power = battleUnitBuf.stack / 7
@@ -325,7 +286,7 @@ namespace BladeLineageInitializer
 
         public override void OnUseCard()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             this.card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
             {
                 power = battleUnitBuf.stack / 4
@@ -339,7 +300,7 @@ namespace BladeLineageInitializer
 
         public override void OnUseCard()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 2);
         }
     }
@@ -387,7 +348,7 @@ namespace BladeLineageInitializer
     /// DiceCardAbilitys
     /// </summary>
 
-    public class DiceCardAbility_Bleeding3Paralysis2 : DiceCardAbilityBase
+    public class DiceCardAbility_Bleeding8Paralysis5 : DiceCardAbilityBase
     {
         public static string Desc = "[적중] 다음막에 출혈 8, 마비 5 부여";
 
@@ -416,7 +377,7 @@ namespace BladeLineageInitializer
 
         public override void OnWinParrying()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 4);
             base.card.AddDiceAdder(DiceMatch.NextDice, 2);
         }
@@ -439,7 +400,7 @@ namespace BladeLineageInitializer
 
         public override void OnWinParrying()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 5);
 
         }
@@ -465,7 +426,7 @@ namespace BladeLineageInitializer
         }
     }
 
-    public class DiceCardAbility_SlashPowerUpOnWinParrying : DiceCardAbilityBase
+    public class DiceCardAbility_SlashPowerUp_OnWinParrying : DiceCardAbilityBase
     {
         public static string Desc = "[합 승리] 다음 막에 참격 위력 증가 1 얻음";
 
@@ -491,7 +452,7 @@ namespace BladeLineageInitializer
 
         public override void OnSucceedAttack()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 1);
         }
     }
@@ -502,7 +463,7 @@ namespace BladeLineageInitializer
 
         public override void OnSucceedAttack()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 2);
         }
     }
@@ -513,7 +474,7 @@ namespace BladeLineageInitializer
 
         public override void OnSucceedAttack()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 3);
         }
     }
@@ -524,7 +485,7 @@ namespace BladeLineageInitializer
 
         public override void OnSucceedAttack()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 4);
         }
     }
@@ -535,7 +496,7 @@ namespace BladeLineageInitializer
 
         public override void OnSucceedAttack()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 5);
         }
     }
@@ -546,7 +507,7 @@ namespace BladeLineageInitializer
 
         public override void OnWinParrying()
         {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 4);
         }
     }
@@ -555,16 +516,60 @@ namespace BladeLineageInitializer
     /// BattleUnitBufs
     /// </summary>
 
-    public class BattleUnitBuf_Poise : BattleUnitBuf
+    public class BattleUnitBuf_SwordPlaySlashPowerUp : BattleUnitBuf
     {
-        protected override string keywordId
+        protected override string keywordId => "SwordPlaySlash";
+        public override void OnRoundEnd()
         {
-            get
-            {
-                return "Poise_Buf";
-            }
+            this.Destroy();
         }
+        public override void BeforeRollDice(BattleDiceBehavior behavior)
+        {
+            if (behavior.Detail != BehaviourDetail.Slash) return;
+            behavior.ApplyDiceStatBonus(new DiceStatBonus
+            {
+                power = 2
+            });
+        }
+        public override void Init(BattleUnitModel owner)
+        {
+            base.Init(owner);
+            typeof(BattleUnitBuf).GetField("_bufIcon", AccessTools.all).SetValue(this, BladeLineageInit.ArtWorks["SwordPlaySlash"]);
+            typeof(BattleUnitBuf).GetField("_iconInit", AccessTools.all).SetValue(this, true);
+            this.stack = 0;
+        }
+    }
 
+public class BattleUnitBuf_SwordPlayPenetratingPowerUp : BattleUnitBuf
+{
+    protected override string keywordId => "SwordPlayPenetrating";
+
+    public override void OnRoundEnd()
+    {
+        this.Destroy();
+    }
+
+    public override void BeforeRollDice(BattleDiceBehavior behavior)
+    {
+        if (behavior.Detail != BehaviourDetail.Penetrate) return;
+        behavior.ApplyDiceStatBonus(new DiceStatBonus
+        {
+            power = 2
+        });
+    }
+
+    public override void Init(BattleUnitModel owner)
+    {
+        base.Init(owner);
+        typeof(BattleUnitBuf).GetField("_bufIcon", AccessTools.all).SetValue(this, BladeLineageInit.ArtWorks["SwordPlayPenetrating"]);
+        typeof(BattleUnitBuf).GetField("_iconInit", AccessTools.all).SetValue(this, true);
+        this.stack = 0;
+        }
+    }
+
+public class BattleUnitBuf_Poise : BattleUnitBuf
+    {
+        protected override string keywordId => "Poise_Buf";
         public override void OnRoundEnd()
         {
             this.stack--;
@@ -585,15 +590,14 @@ namespace BladeLineageInitializer
             if (RandomUtil.valueForProb > 0.05f * this.stack) return;
             behavior.ApplyDiceStatBonus(new DiceStatBonus
             {
-                dmgRate = 2 * this.stack
+                dmgRate = 30
             });
             this.stack--;
-
         }
 
         public static BattleUnitBuf_Poise IshaveBuf(BattleUnitModel target, bool findready = false)
         {
-            foreach (BattleUnitBuf battleUnitBuf in target.bufListDetail.GetActivatedBufList())
+            foreach (var battleUnitBuf in target.bufListDetail.GetActivatedBufList())
             {
                 if (battleUnitBuf is BattleUnitBuf_Poise)
                 {
@@ -603,7 +607,7 @@ namespace BladeLineageInitializer
 
             if (findready)
             {
-                foreach (BattleUnitBuf battleUnitBuf2 in target.bufListDetail.GetReadyBufList())
+                foreach (var battleUnitBuf2 in target.bufListDetail.GetReadyBufList())
                 {
                     if (battleUnitBuf2 is BattleUnitBuf_Poise)
                     {
@@ -616,22 +620,21 @@ namespace BladeLineageInitializer
 
         public static void AddPoise(BattleUnitModel target, int stack)
         {
-            BattleUnitBuf_Poise battleUnitBuf_Poise = BattleUnitBuf_Poise.IshaveBuf(target, true);
-            if (battleUnitBuf_Poise != null)
+            var battleUnitBufPoise = BattleUnitBuf_Poise.IshaveBuf(target, true);
+            if (battleUnitBufPoise != null)
             {
-                battleUnitBuf_Poise.stack += stack;
-                if (battleUnitBuf_Poise.stack > 20)
+                battleUnitBufPoise.stack += stack;
+                if (battleUnitBufPoise.stack > 20)
                 {
-                    battleUnitBuf_Poise.stack = 20;
-                    return;
+                    battleUnitBufPoise.stack = 20;
                 }
             }
             else
             {
-                BattleUnitBuf_Poise battleUnitBuf_Poise2 = new BattleUnitBuf_Poise();
-                battleUnitBuf_Poise2.stack = stack;
-                battleUnitBuf_Poise2.Init(target);
-                target.bufListDetail.AddBuf(battleUnitBuf_Poise2);
+                var battleUnitBufPoise2 = new BattleUnitBuf_Poise();
+                battleUnitBufPoise2.stack = stack;
+                battleUnitBufPoise2.Init(target);
+                target.bufListDetail.AddBuf(battleUnitBufPoise2);
             }
         }
 
