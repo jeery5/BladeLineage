@@ -1,5 +1,4 @@
-﻿using BladeLineageInitializer;
-using HarmonyLib;
+﻿using HarmonyLib;
 using LOR_DiceSystem;
 using LOR_XML;
 using System;
@@ -10,13 +9,14 @@ using System.Reflection;
 using System.Xml.Serialization;
 using UI;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.PostProcessing;
 
 #pragma warning disable IDE0017
 
 
 
-namespace BladeLineageInitializer
+namespace BladeLineage
 {
     public class BladeLineageInit : ModInitializer
     {
@@ -134,27 +134,56 @@ namespace BladeLineageInitializer
         public override void OnRoundStart()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            if (battleUnitBuf.stack >= 0)
+            if (battleUnitBuf.stack >= 13)
             {
                 List<BattleUnitModel> aliveList = BattleObjectManager.instance.GetAliveList(owner.faction);
                 int num = 2; 
                 while (aliveList.Count > 0 && num > 0)
                 {
-                    BattleUnitModel battleUnitModel = RandomUtil.SelectOne(aliveList);
+                    var battleUnitModel = RandomUtil.SelectOne(aliveList);
                     aliveList.Remove(battleUnitModel);
-                    battleUnitModel.bufListDetail.AddReadyBuf(new BattleUnitBuf_SwordPlaySlashPowerUp());
-                    battleUnitModel.bufListDetail.AddReadyBuf(new BattleUnitBuf_SwordPlayPenetratingPowerUp());
+                    battleUnitModel.bufListDetail.AddReadyBuf(new BattleUnitBuf_SwordPlayPowerUp2());
+                    num--;
+                }
+            }
+            else if (battleUnitBuf.stack >= 8)
+            {
+                List<BattleUnitModel> aliveList = BattleObjectManager.instance.GetAliveList(owner.faction);
+                int num = 2;
+                while (aliveList.Count > 0 && num > 0)
+                {
+                    var battleUnitModel = RandomUtil.SelectOne(aliveList);
+                    aliveList.Remove(battleUnitModel);
+                    battleUnitModel.bufListDetail.AddReadyBuf(new BattleUnitBuf_SwordPlayPowerUp1());
                     num--;
                 }
             }
         }
     }
+    public class PassiveAbility_Stand : PassiveAbilityBase
+    {
+        // Token: 0x060000DD RID: 221 RVA: 0x00006F70 File Offset: 0x00005170
+        public override void OnStartBattle()
+        {
+            base.OnStartBattle();
+            DiceCardXmlInfo cardItem = ItemXmlDataList.instance.GetCardItem(new LorId(BladeLineageInit.PackageId, 10), false);
+            List<BattleDiceBehavior> list = new List<BattleDiceBehavior>();
+            int num = 0;
+            foreach (DiceBehaviour diceBehaviour in cardItem.DiceBehaviourList)
+            {
+                BattleDiceBehavior battleDiceBehavior = new BattleDiceBehavior();
+                battleDiceBehavior.behaviourInCard = diceBehaviour.Copy();
+                battleDiceBehavior.SetIndex(num++);
+                list.Add(battleDiceBehavior);
+            }
+            this.owner.cardSlotDetail.keepCard.AddBehaviours(cardItem, list);
+        }
+    }
+    /// <summary>
+    /// DiceCardSelfAbilitys
+    /// </summary>
 
-/// <summary>
-/// DiceCardSelfAbilitys
-/// </summary>
-
-public class DiceCardSelfAbility_Poise7Dmg1Draw1 : DiceCardSelfAbilityBase
+    public class DiceCardSelfAbility_Poise7Dmg1Draw1 : DiceCardSelfAbilityBase
     {
         public static string Desc = "[사용시] 책장을 1장 뽑음, 자신의 호흡이 7 이상이라면 이 책장의 모든 주사위 위력 +1";
 
@@ -243,23 +272,6 @@ public class DiceCardSelfAbility_Poise7Dmg1Draw1 : DiceCardSelfAbilityBase
                 card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
                 {
                     power = 1
-                });
-            }
-        }
-    }
-
-    public class DiceCardSelfAbility_PowerMinus12 : DiceCardSelfAbilityBase
-    {
-        public static string Desc = "감정 단계가 4 이상일 때, 합을 하는 동안 이 책장의 모든 주사위 위력 -12";
-
-        public override void OnUseCard()
-        {
-            int emotionLevel = base.owner.emotionDetail.EmotionLevel;
-            if (emotionLevel >= 4)
-            {
-                card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
-                {
-                    power = -12
                 });
             }
         }
@@ -383,14 +395,14 @@ public class DiceCardSelfAbility_Poise7Dmg1Draw1 : DiceCardSelfAbilityBase
         }
     }
 
-    public class DiceCardAbility_Bleeding3Paralysis5 : DiceCardAbilityBase
+    public class DiceCardAbility_Bleeding3Paralysis2 : DiceCardAbilityBase
     {
-        public static string Desc = "[적중] 다음 막에 출혈 3, 마비 5 부여";
+        public static string Desc = "[적중] 다음 막에 출혈 3, 마비 2 부여";
 
         public override void OnSucceedAttack()
         {
             base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 3, base.owner);
-            base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Paralysis, 5, base.owner);
+            base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Paralysis, 2, base.owner);
         }
     }
 
@@ -516,33 +528,33 @@ public class DiceCardSelfAbility_Poise7Dmg1Draw1 : DiceCardSelfAbilityBase
     /// BattleUnitBufs
     /// </summary>
 
-    public class BattleUnitBuf_SwordPlaySlashPowerUp : BattleUnitBuf
+    public class BattleUnitBuf_SwordPlayPowerUp1 : BattleUnitBuf // 본국검 세법전수
     {
-        protected override string keywordId => "SwordPlaySlash";
+        protected override string keywordId => "SwordPlay1";
         public override void OnRoundEnd()
         {
             this.Destroy();
         }
         public override void BeforeRollDice(BattleDiceBehavior behavior)
         {
-            if (behavior.Detail != BehaviourDetail.Slash) return;
+            if (behavior.Detail != BehaviourDetail.Slash && behavior.Detail != BehaviourDetail.Penetrate) return;
             behavior.ApplyDiceStatBonus(new DiceStatBonus
             {
-                power = 2
+                power = 1
             });
         }
         public override void Init(BattleUnitModel owner)
         {
             base.Init(owner);
-            typeof(BattleUnitBuf).GetField("_bufIcon", AccessTools.all).SetValue(this, BladeLineageInit.ArtWorks["SwordPlaySlash"]);
+            typeof(BattleUnitBuf).GetField("_bufIcon", AccessTools.all).SetValue(this, BladeLineageInit.ArtWorks["SwordPlay1"]);
             typeof(BattleUnitBuf).GetField("_iconInit", AccessTools.all).SetValue(this, true);
             this.stack = 0;
         }
     }
 
-public class BattleUnitBuf_SwordPlayPenetratingPowerUp : BattleUnitBuf
+public class BattleUnitBuf_SwordPlayPowerUp2 : BattleUnitBuf // 본국검 자법전수
 {
-    protected override string keywordId => "SwordPlayPenetrating";
+    protected override string keywordId => "SwordPlay2";
 
     public override void OnRoundEnd()
     {
@@ -551,7 +563,7 @@ public class BattleUnitBuf_SwordPlayPenetratingPowerUp : BattleUnitBuf
 
     public override void BeforeRollDice(BattleDiceBehavior behavior)
     {
-        if (behavior.Detail != BehaviourDetail.Penetrate) return;
+        if (behavior.Detail != BehaviourDetail.Slash && behavior.Detail != BehaviourDetail.Penetrate) return;
         behavior.ApplyDiceStatBonus(new DiceStatBonus
         {
             power = 2
@@ -561,7 +573,7 @@ public class BattleUnitBuf_SwordPlayPenetratingPowerUp : BattleUnitBuf
     public override void Init(BattleUnitModel owner)
     {
         base.Init(owner);
-        typeof(BattleUnitBuf).GetField("_bufIcon", AccessTools.all).SetValue(this, BladeLineageInit.ArtWorks["SwordPlayPenetrating"]);
+        typeof(BattleUnitBuf).GetField("_bufIcon", AccessTools.all).SetValue(this, BladeLineageInit.ArtWorks["SwordPlay2"]);
         typeof(BattleUnitBuf).GetField("_iconInit", AccessTools.all).SetValue(this, true);
         this.stack = 0;
         }
@@ -624,7 +636,7 @@ public class BattleUnitBuf_Poise : BattleUnitBuf
             if (battleUnitBufPoise != null)
             {
                 battleUnitBufPoise.stack += stack;
-                if (battleUnitBufPoise.stack > 20)
+                if (battleUnitBufPoise.stack > 2)
                 {
                     battleUnitBufPoise.stack = 20;
                 }
