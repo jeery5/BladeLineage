@@ -4,13 +4,14 @@ using LOR_XML;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Reflection;
 using System.Xml.Serialization;
 using UI;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.PostProcessing;
+using UnityEngine.EventSystems;
+using Mod;
+using TMPro;
 
 #pragma warning disable IDE0017
 
@@ -23,8 +24,8 @@ namespace BladeLineage
         public override void OnInitializeMod()
         {
             base.OnInitializeMod();
-            Harmony harmony = new Harmony("LOR.BladeLineage.MOD");
-            MethodInfo method = typeof(BladeLineageInit).GetMethod("BookModel_SetXmlInfo");
+            var harmony = new Harmony("LOR.BladeLineage.MOD");
+            var method = typeof(BladeLineageInit).GetMethod("BookModel_SetXmlInfo");
             harmony.Patch(typeof(BookModel).GetMethod("SetXmlInfo", AccessTools.all), null, new HarmonyMethod(method),null, null, null);
             BladeLineageInit.Path = System.IO.Path.GetDirectoryName(Uri.UnescapeDataString(new UriBuilder(Assembly.GetExecutingAssembly().CodeBase).Path));
             BladeLineageInit.Language = GlobalGameManager.Instance.CurrentOption.language;
@@ -78,8 +79,6 @@ namespace BladeLineage
                 BladeLineageInit.ArtWorks[fileNameWithoutExtension] = value;
             }
         }
-
-
         public static void BookModel_SetXmlInfo(BookModel __instance, BookXmlInfo ____classInfo, ref List<DiceCardXmlInfo> ____onlyCards)
         {
             if (__instance.BookId.packageId == BladeLineageInit.PackageId)
@@ -162,7 +161,6 @@ namespace BladeLineage
     }
     public class PassiveAbility_Stand : PassiveAbilityBase
     {
-        // Token: 0x060000DD RID: 221 RVA: 0x00006F70 File Offset: 0x00005170
         public override void OnStartBattle()
         {
             base.OnStartBattle();
@@ -182,6 +180,7 @@ namespace BladeLineage
     /// <summary>
     /// DiceCardSelfAbilitys
     /// </summary>
+
 
     public class DiceCardSelfAbility_Poise7Dmg1Draw1 : DiceCardSelfAbilityBase
     {
@@ -205,14 +204,15 @@ namespace BladeLineage
         }
     }
 
-    public class DiceCardSelfAbility_Energy1Draw1 : DiceCardSelfAbilityBase
+    public class DiceCardSelfAbility_Poise7Energy1Draw1 : DiceCardSelfAbilityBase
     {
-        public static string Desc = "[사용시] 책장을 1장 뽑고 빛 1 회복";
+        public static string Desc = "[사용시] 보유한 호흡 7당 책장을 뽑음 (최대 3장)";
 
         public override void OnUseCard()
         {
-            base.owner.allyCardDetail.DrawCards(1);
-            base.owner.cardSlotDetail.RecoverPlayPointByCard(1);
+            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            int num = Mathf.Min(3, battleUnitBuf.stack / 6);
+            base.owner.allyCardDetail.DrawCards(num);
         }
     }
 
@@ -276,6 +276,15 @@ namespace BladeLineage
             }
         }
     }
+    public class DiceCardSelfAbility_Poise8Dmg1Draw2Energy1 : DiceCardSelfAbilityBase
+    {
+        public static string Desc = "[사용시] 보유한 호흡의 절반만큼 흐트러짐 회복";
+        public override void OnUseCard()
+        {
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            base.owner.breakDetail.RecoverBreak(battleUnitBuf.stack / 2);
+        }
+    }
 
     public class DiceCardSelfAbility_PoisePer7Power : DiceCardSelfAbilityBase
     {
@@ -284,9 +293,10 @@ namespace BladeLineage
         public override void OnUseCard()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            int num = Mathf.Min(2, battleUnitBuf.stack / 7);
             this.card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
             {
-                power = battleUnitBuf.stack / 7
+                power = num
             });
 
         }
@@ -299,9 +309,10 @@ namespace BladeLineage
         public override void OnUseCard()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
+            int num = Mathf.Min(5, battleUnitBuf.stack / 4);
             this.card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
             {
-                power = battleUnitBuf.stack / 4
+                power = num
             });
         }
     }
@@ -329,7 +340,7 @@ namespace BladeLineage
 
     public class DiceCardSelfAbility_Flash : DiceCardSelfAbilityBase
     {
-        public static string Desc = "[합 패배] 골단 사용";
+        public static string Desc = "합 패배시 골단 사용";
 
         public override void OnLoseParrying()
         {
@@ -338,9 +349,7 @@ namespace BladeLineage
 
         public override void OnEndBattle()
         {
-            bool flag = this.isLoseParrying;
-            bool flag2 = flag;
-            if (flag2)
+            if (this.isLoseParrying)
             {
                 BattleUnitModel target = this.card.target;
                 BattleDiceCardModel card = BattleDiceCardModel.CreatePlayingCard(ItemXmlDataList.instance.GetCardItem(new LorId(BladeLineageInit.PackageId, 6), false));
@@ -417,7 +426,16 @@ namespace BladeLineage
 
         }
     }
-    
+    public class DiceCardAbility_Bleeding2 : DiceCardAbilityBase
+    {
+        public static string Desc = "[적중] 다음 막에 출혈 2 부여";
+
+        public override void OnSucceedAttack()
+        {
+            base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 2, base.owner);
+        }
+    }
+
     public class DiceCardAbility_Bleeding3 : DiceCardAbilityBase
     {
         public static string Desc = "[적중] 다음 막에 출혈 3 부여";
@@ -438,7 +456,7 @@ namespace BladeLineage
         }
     }
 
-    public class DiceCardAbility_SlashPowerUp_OnWinParrying : DiceCardAbilityBase
+    public class DiceCardAbility_SlashPowerUpOnWinParrying : DiceCardAbilityBase
     {
         public static string Desc = "[합 승리] 다음 막에 참격 위력 증가 1 얻음";
 
@@ -448,7 +466,7 @@ namespace BladeLineage
         }
     }
 
-    public class DiceCardAbility_SlashPowerUp2_OnWinParrying : DiceCardAbilityBase
+    public class DiceCardAbility_SlashPowerUp2OnWinParrying : DiceCardAbilityBase
     {
         public static string Desc = "[합 승리] 다음 막에 참격 위력 증가 2 얻음";
 
@@ -480,21 +498,22 @@ namespace BladeLineage
         }
     }
 
-    public class DiceCardAbility_Poise3 : DiceCardAbilityBase
+    public class DiceCardAbility_Poise3Break : DiceCardAbilityBase
     {
-        public static string Desc = "[적중] 호흡 3 얻음";
+        public static string Desc = "[적중] 호흡 3 얻음. 보유한 호흡의 절반만큼 대상에게 흐트러짐 피해";
 
         public override void OnSucceedAttack()
         {
+            var target = base.card.target;
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 3);
+            target.TakeBreakDamage(battleUnitBuf.stack, 0, null, (AtkResist)3, 0);
         }
     }
 
     public class DiceCardAbility_Poise4 : DiceCardAbilityBase
     {
         public static string Desc = "[적중] 호흡 4 얻음";
-
         public override void OnSucceedAttack()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
@@ -636,7 +655,7 @@ public class BattleUnitBuf_Poise : BattleUnitBuf
             if (battleUnitBufPoise != null)
             {
                 battleUnitBufPoise.stack += stack;
-                if (battleUnitBufPoise.stack > 2)
+                if (battleUnitBufPoise.stack > 20)
                 {
                     battleUnitBufPoise.stack = 20;
                 }
