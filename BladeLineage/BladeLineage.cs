@@ -32,7 +32,6 @@ namespace BladeLineage
             BladeLineageInit.GetArtWorks(new DirectoryInfo(BladeLineageInit.Path + "/ArtWork"));
             BladeLineageInit.AddLocalize();
         }
-
         public static void AddLocalize()
         {
             Dictionary<string, BattleEffectText> dictionary = typeof(BattleEffectTextsXmlList).GetField("_dictionary", AccessTools.all).GetValue(Singleton<BattleEffectTextsXmlList>.Instance) as Dictionary<string, BattleEffectText>;
@@ -49,17 +48,7 @@ namespace BladeLineage
                     }
                 }
             }
-            files = new DirectoryInfo(BladeLineageInit.Path + "/Localize/" + BladeLineageInit.Language + "/BattleDialogues").GetFiles();
-            for (int k = 0; k < files.Length; k++)
-            {
-                using (StringReader stringReader2 = new StringReader(File.ReadAllText(files[k].FullName)))
-                {
-                    BattleDialogRoot battleDialogRoot = (BattleDialogRoot)new XmlSerializer(typeof(BattleDialogRoot)).Deserialize(stringReader2);
-                    ((Dictionary<string, BattleDialogRoot>)typeof(BattleDialogXmlList).GetField("_dictionary", AccessTools.all).GetValue(Singleton<BattleDialogXmlList>.Instance))[battleDialogRoot.groupName] = battleDialogRoot;
-                }
-            }
         }
-
         public static void GetArtWorks(DirectoryInfo dir)
         {
             if (dir.GetDirectories().Length != 0)
@@ -110,11 +99,9 @@ namespace BladeLineage
             BattleUnitBuf_Poise.AddPoise(base.owner, 1);
         }
     }
-
-
     public class PassiveAbility_Unbending : PassiveAbilityBase
     {
-        public override string debugDesc => "참격 위력+1, 참격 피해량+1";
+        public override string debugDesc => "참격 위력 + 1, 참격 피해량 + 1";
 
         public override void BeforeRollDice(BattleDiceBehavior behavior)
         {
@@ -127,7 +114,6 @@ namespace BladeLineage
             });
         }
     }
-
     public class PassiveAbility_SwordPlay : PassiveAbilityBase
     {
         public override void OnRoundStart()
@@ -164,7 +150,7 @@ namespace BladeLineage
         public override void OnStartBattle()
         {
             base.OnStartBattle();
-            DiceCardXmlInfo cardItem = ItemXmlDataList.instance.GetCardItem(new LorId(BladeLineageInit.PackageId, 10), false);
+            DiceCardXmlInfo cardItem = ItemXmlDataList.instance.GetCardItem(new LorId(BladeLineageInit.PackageId, 12), false);
             List<BattleDiceBehavior> list = new List<BattleDiceBehavior>();
             int num = 0;
             foreach (DiceBehaviour diceBehaviour in cardItem.DiceBehaviourList)
@@ -177,123 +163,120 @@ namespace BladeLineage
             this.owner.cardSlotDetail.keepCard.AddBehaviours(cardItem, list);
         }
     }
+
     /// <summary>
     /// DiceCardSelfAbilitys
     /// </summary>
 
-
-    public class DiceCardSelfAbility_Poise7Dmg1Draw1 : DiceCardSelfAbilityBase
+    public class DiceCardSelfAbility_Poise6Dmg1Draw1 : DiceCardSelfAbilityBase
     {
-        public static string Desc = "[사용시] 책장을 1장 뽑음, 자신의 호흡이 7 이상이라면 이 책장의 모든 주사위 위력 +1";
-
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                    "DrawCard_Keyword"
+                };
+            }
+        }
+        public static string Desc = "[사용시] 책장을 1장 뽑음, 보유한 호흡 6당 책장을 1장 뽑음 (최대 2장)";
         public override void OnUseCard()
         {
             base.owner.allyCardDetail.DrawCards(1);
-        }
-
-        public override void BeforeRollDice(BattleDiceBehavior behavior)
-        {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            if (battleUnitBuf.stack >= 7)
-            {
-                card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
-                {
-                    power = 1
-                });
-            }
-        }
-    }
-
-    public class DiceCardSelfAbility_Poise7Energy1Draw1 : DiceCardSelfAbilityBase
-    {
-        public static string Desc = "[사용시] 보유한 호흡 7당 책장을 뽑음 (최대 3장)";
-
-        public override void OnUseCard()
-        {
-            BattleUnitBuf battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            int num = Mathf.Min(3, battleUnitBuf.stack / 6);
+            var num = Mathf.Min(2, battleUnitBuf.stack / 6);
             base.owner.allyCardDetail.DrawCards(num);
         }
     }
-
-    public class DiceCardSelfAbility_Poise7Dmg1Energy1 : DiceCardSelfAbilityBase
+    public class DiceCardSelfAbility_Poise7PowerEnergy2 : DiceCardSelfAbilityBase
     {
-        public static string Desc = "[사용시] 빛 1 회복, 자신의 호흡이 7 이상이라면 이 책장의 모든 주사위 위력 +1";
-
-        public override void OnUseCard()
+        public override string[] Keywords
         {
-            base.owner.cardSlotDetail.RecoverPlayPointByCard(1);
-        }
-
-        public override void BeforeRollDice(BattleDiceBehavior behavior)
-        {
-            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            if (battleUnitBuf.stack >= 7)
+            get
             {
-                card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
+                return new string[]
                 {
-                    power = 1
-                });
+                    "Poise_Buf",
+                    "Energy_Keyword"
+                };
             }
         }
-    }
-
-    public class DiceCardSelfAbility_Poise5Dmg1Energy2 : DiceCardSelfAbilityBase
-    {
-        public static string Desc = "[사용시] 빛 2 회복, 자신의 호흡이 5 이상이라면 이 책장의 모든 주사위 위력 +1";
-
+        public static string Desc = "[사용시] 빛 2 회복, 보유한 호흡이 7 이상이면 이 책장의 모든 주사위 위력 + 1";
         public override void OnUseCard()
         {
+            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             base.owner.cardSlotDetail.RecoverPlayPointByCard(2);
         }
-
         public override void BeforeRollDice(BattleDiceBehavior behavior)
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            if (battleUnitBuf.stack >= 5)
+            if (battleUnitBuf.stack < 7) return;
+            card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
             {
-                card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
-                {
-                    power = 1
-                });
-            }
+                power = 1
+            });
         }
     }
-
-    public class DiceCardSelfAbility_Poise8Dmg1 : DiceCardSelfAbilityBase
+    public class DiceCardSelfAbility_Poise4PerEnergy : DiceCardSelfAbilityBase
     {
-        public static string Desc = "자신의 호흡이 8 이상이라면 이 책장의 모든 주사위 위력 +1";
-
-        public override void BeforeRollDice(BattleDiceBehavior behavior)
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                    "Energy_Keyword"
+                };
+            }
+        }
+        public static string Desc = "[사용시] 보유한 호흡 4당 빛 1 회복 (최대 3)";
+        public override void OnUseCard()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            if (battleUnitBuf.stack >= 8)
-            {
-                card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
-                {
-                    power = 1
-                });
-            }
+            var num = Mathf.Min(3, battleUnitBuf.stack / 4);
+            base.owner.cardSlotDetail.RecoverPlayPointByCard(num);
         }
     }
-    public class DiceCardSelfAbility_Poise8Dmg1Draw2Energy1 : DiceCardSelfAbilityBase
+    public class DiceCardSelfAbility_PoisePerBreak : DiceCardSelfAbilityBase
     {
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                };
+            }
+        }
         public static string Desc = "[사용시] 보유한 호흡의 절반만큼 흐트러짐 회복";
         public override void OnUseCard()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            base.owner.breakDetail.RecoverBreak(battleUnitBuf.stack / 2);
+            var num = Mathf.Min(10, battleUnitBuf.stack / 2);
+            base.owner.breakDetail.RecoverBreak(num);
         }
     }
-
     public class DiceCardSelfAbility_PoisePer7Power : DiceCardSelfAbilityBase
     {
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                };
+            }
+        }
         public static string Desc = "[사용시] 보유한 호흡 수치 7당 이 책장의 모든 주사위 위력 증가 (최대 2)";
-
         public override void OnUseCard()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            int num = Mathf.Min(2, battleUnitBuf.stack / 7);
+            var num = Mathf.Min(2, battleUnitBuf.stack / 7);
             this.card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
             {
                 power = num
@@ -301,218 +284,221 @@ namespace BladeLineage
 
         }
     }
-
-    public class DiceCardSelfAbility_PoisePer4Power : DiceCardSelfAbilityBase
+    public class DiceCardSelfAbility_PoisePer8Power : DiceCardSelfAbilityBase
     {
-        public static string Desc = "[사용시] 보유한 호흡 수치 4당 이 책장의 모든 주사위 위력 증가 (최대 5)";
-
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                };
+            }
+        }
+        public static string Desc = "[사용시] 보유한 호흡 수치 8당 이 책장의 모든 주사위 위력 증가 (최대 2)";
         public override void OnUseCard()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            int num = Mathf.Min(5, battleUnitBuf.stack / 4);
+            var num = Mathf.Min(2, battleUnitBuf.stack / 8);
             this.card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
             {
                 power = num
             });
         }
     }
-
-    public class DiceCardSelfAbility_Poise2onUse : DiceCardSelfAbilityBase
+    public class DiceCardSelfAbility_Poise3onUse : DiceCardAbilityBase
     {
-        public static string Desc = "[사용시] 호흡 2 얻음";
-
-        public override void OnUseCard()
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                };
+            }
+        }
+        public static string Desc = "[사용시] 호흡 5 얻음";
+        public override void OnWinParrying()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            BattleUnitBuf_Poise.AddPoise(base.owner, 2);
+            BattleUnitBuf_Poise.AddPoise(base.owner, 5);
         }
     }
-
-    public class DiceCardSelfAbility_Energy2onUse : DiceCardSelfAbilityBase
+    public class DiceCardSelfAbility_FlashOnLoseParrying : DiceCardSelfAbilityBase
     {
-        public static string Desc = "[사용시] 빛 2 회복";
-
-        public override void OnUseCard()
+        public override string[] Keywords
         {
-            base.owner.cardSlotDetail.RecoverPlayPoint(2);
+            get
+            {
+                return new string[]
+                {
+                    "only_BladeLineage",
+                    "flash_Keyword"
+                };
+            }
         }
-    }
-
-    public class DiceCardSelfAbility_Flash : DiceCardSelfAbilityBase
-    {
-        public static string Desc = "합 패배시 골단 사용";
-
+        public static string Desc = "합 패배시 [골단] 사용";
         public override void OnLoseParrying()
         {
-            this.isLoseParrying = true;
+            this._isLoseParrying = true;
         }
-
         public override void OnEndBattle()
         {
-            if (this.isLoseParrying)
+            if (this._isLoseParrying)
             {
-                BattleUnitModel target = this.card.target;
-                BattleDiceCardModel card = BattleDiceCardModel.CreatePlayingCard(ItemXmlDataList.instance.GetCardItem(new LorId(BladeLineageInit.PackageId, 6), false));
-                BattlePlayingCardDataInUnitModel battlePlayingCardDataInUnitModel = new BattlePlayingCardDataInUnitModel();
+                var target = this.card.target;
+                var card = BattleDiceCardModel.CreatePlayingCard(ItemXmlDataList.instance.GetCardItem(new LorId(BladeLineageInit.PackageId, 6), false));
+                var battlePlayingCardDataInUnitModel = new BattlePlayingCardDataInUnitModel();
                 battlePlayingCardDataInUnitModel.card = card;
                 battlePlayingCardDataInUnitModel.owner = base.owner;
                 battlePlayingCardDataInUnitModel.target = target;
                 battlePlayingCardDataInUnitModel.targetSlotOrder = 0;
                 Singleton<StageController>.Instance.AddAllCardListInBattle(battlePlayingCardDataInUnitModel, target, -1);
             }
-            this.isLoseParrying = false;
+            this._isLoseParrying = false;
         }
-        private bool isLoseParrying = false;
+        private bool _isLoseParrying = false;
+    }
+    public class DiceCardSelfAbility_FlashOnLoseParryingPower8 : DiceCardSelfAbilityBase
+    {
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "only_BladeLineage",
+                    "flash_Keyword"
+                };
+            }
+        }
+        public static string Desc = "[사용시] 감정 단계가 5 이상이라면 이 책장의 모든 주사위 위력 -8, 합 패배시 [골단] 사용";
+
+        public override void OnUseCard()
+        {
+            var emotionLevel = base.owner.emotionDetail.EmotionLevel;
+            if (emotionLevel < 5) return;
+            card.ApplyDiceStatBonus(DiceMatch.AllDice, new DiceStatBonus
+            {
+                power = -8
+            });
+        }
+        public override void OnLoseParrying()
+        {
+            this._isLoseParrying = true;
+        }
+        public override void OnEndBattle()
+        {
+            if (this._isLoseParrying)
+            {
+                var target = this.card.target;
+                var card = BattleDiceCardModel.CreatePlayingCard(ItemXmlDataList.instance.GetCardItem(new LorId(BladeLineageInit.PackageId, 6), false));
+                var battlePlayingCardDataInUnitModel = new BattlePlayingCardDataInUnitModel();
+                battlePlayingCardDataInUnitModel.card = card;
+                battlePlayingCardDataInUnitModel.owner = base.owner;
+                battlePlayingCardDataInUnitModel.target = target;
+                battlePlayingCardDataInUnitModel.targetSlotOrder = 0;
+                Singleton<StageController>.Instance.AddAllCardListInBattle(battlePlayingCardDataInUnitModel, target, -1);
+            }
+            this._isLoseParrying = false;
+        }
+        private bool _isLoseParrying = false;
     }
 
     /// <summary>
     /// DiceCardAbilitys
     /// </summary>
 
-    public class DiceCardAbility_Bleeding8Paralysis5 : DiceCardAbilityBase
+    public class DiceCardAbility_Bleeding3Poise2 : DiceCardAbilityBase
     {
-        public static string Desc = "[적중] 다음막에 출혈 8, 마비 5 부여";
-
-        public override string[] Keywords => new string[2] { "Paralysis_Keyword", "exhaust" };
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf", "Bleeding_Keyword"
+                };
+            }
+        }
+        public static string Desc = "[적중] 다음 막에 출혈 3 부여, 호흡 2 얻음";
+        public override void OnSucceedAttack(BattleUnitModel target)
+        {
+            base.card.target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 3, base.owner);
+        }
+    }
+    public class DiceCardAbility_SlashPowerUp : DiceCardAbilityBase
+    {
+        public static string Desc = "[적중] 다음 막에 참격 위력 증가 1 얻음";
+        public override void OnSucceedAttack()
+        {
+            base.owner.bufListDetail.AddKeywordBufByCard(KeywordBuf.SlashPowerUp, 1, base.owner);
+        }
+    }
+    public class DiceCardAbility_Bleeding3Paralysis1 : DiceCardAbilityBase
+    {
+        public static string Desc = "[적중] 다음 막에 출혈 3, 마비 1 부여";
+        public override string[] Keywords => new string[2] { "Paralysis_Keyword", "Bleeding_Keyword" };
+        public override void OnSucceedAttack(BattleUnitModel target)
+        {
+            base.card.target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 3, base.owner);
+            base.card.target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Paralysis, 1, base.owner);
+        }
+    }
+    public class DiceCardAbility_Bleeding5Paralysis3 : DiceCardAbilityBase
+    {
+        public static string Desc = "[적중] 다음막에 출혈 5, 마비 3 부여";
+        public override string[] Keywords => new string[2] { "Paralysis_Keyword", "Bleeding_Keyword" };
 
         public override void OnSucceedAttack(BattleUnitModel target)
         {
-            base.card.target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Paralysis, 5, base.owner);
-            base.card.target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 8, base.owner);
+            base.card.target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 5, base.owner);
+            base.card.target?.bufListDetail.AddKeywordBufByCard(KeywordBuf.Paralysis, 3, base.owner);
         }
     }
-
-    public class DiceCardAbility_Energy2 : DiceCardAbilityBase
-    {
-        public static string Desc = "[적중] 빛 2 회복";
-
-        public override void OnSucceedAttack()
-        {
-            base.owner.cardSlotDetail.RecoverPlayPointByCard(2);
-        }
-    }
-
-    public class DiceCardAbility_Poise4AddNextDice2onWinParrying : DiceCardAbilityBase
-    {
-        public static string Desc = "[합 승리] 호흡 4 얻고, 다음 주사위 위력 +2";
-
-        public override void OnWinParrying()
-        {
-            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            BattleUnitBuf_Poise.AddPoise(base.owner, 4);
-            base.card.AddDiceAdder(DiceMatch.NextDice, 2);
-        }
-    }
-
     public class DiceCardAbility_Bleeding3Paralysis2 : DiceCardAbilityBase
     {
         public static string Desc = "[적중] 다음 막에 출혈 3, 마비 2 부여";
-
-        public override void OnSucceedAttack()
+        public override string[] Keywords => new string[2] { "Paralysis_Keyword", "Bleeding_Keyword" };
+        public override void OnSucceedAttack(BattleUnitModel target)
         {
             base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 3, base.owner);
             base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Paralysis, 2, base.owner);
         }
     }
-
-    public class DiceCardAbiltiy_Poise5onWinParrying : DiceCardAbilityBase
+    public class DiceCardAbility_Poise3 : DiceCardAbilityBase
     {
-        public static string Desc = "[합 승리] 호흡 5 얻음";
-
-        public override void OnWinParrying()
+        public override string[] Keywords
         {
-            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            BattleUnitBuf_Poise.AddPoise(base.owner, 5);
-
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                };
+            }
         }
-    }
-    public class DiceCardAbility_Bleeding2 : DiceCardAbilityBase
-    {
-        public static string Desc = "[적중] 다음 막에 출혈 2 부여";
-
+        public static string Desc = "[적중] 호흡 3 얻음";
         public override void OnSucceedAttack()
         {
-            base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 2, base.owner);
-        }
-    }
-
-    public class DiceCardAbility_Bleeding3 : DiceCardAbilityBase
-    {
-        public static string Desc = "[적중] 다음 막에 출혈 3 부여";
-
-        public override void OnSucceedAttack()
-        {
-            base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 3, base.owner);
-        }
-    }
-
-    public class DiceCardAbility_Bleeding5 : DiceCardAbilityBase
-    {
-        public static string Desc = "[적중] 다음 막에 출혈 5 부여";
-
-        public override void OnSucceedAttack()
-        {
-            base.card.target.bufListDetail.AddKeywordBufByCard(KeywordBuf.Bleeding, 5, base.owner);
-        }
-    }
-
-    public class DiceCardAbility_SlashPowerUpOnWinParrying : DiceCardAbilityBase
-    {
-        public static string Desc = "[합 승리] 다음 막에 참격 위력 증가 1 얻음";
-
-        public override void OnWinParrying()
-        {
-            base.card.owner.bufListDetail.AddKeywordBufByCard(KeywordBuf.SlashPowerUp, 1, base.owner);
-        }
-    }
-
-    public class DiceCardAbility_SlashPowerUp2OnWinParrying : DiceCardAbilityBase
-    {
-        public static string Desc = "[합 승리] 다음 막에 참격 위력 증가 2 얻음";
-
-        public override void OnWinParrying()
-        {
-            base.card.owner.bufListDetail.AddKeywordBufByCard(KeywordBuf.SlashPowerUp, 2, base.owner);
-        }
-    }
-
-    public class DiceCardAbility_Poise1 : DiceCardAbilityBase
-    {
-        public static string Desc = "[적중] 호흡 1 얻음";
-
-        public override void OnSucceedAttack()
-        {
-            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            BattleUnitBuf_Poise.AddPoise(base.owner, 1);
-        }
-    }
-
-    public class DiceCardAbility_Poise2 : DiceCardAbilityBase
-    {
-        public static string Desc = "[적중] 호흡 2 얻음";
-
-        public override void OnSucceedAttack()
-        {
-            var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            BattleUnitBuf_Poise.AddPoise(base.owner, 2);
-        }
-    }
-
-    public class DiceCardAbility_Poise3Break : DiceCardAbilityBase
-    {
-        public static string Desc = "[적중] 호흡 3 얻음. 보유한 호흡의 절반만큼 대상에게 흐트러짐 피해";
-
-        public override void OnSucceedAttack()
-        {
-            var target = base.card.target;
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 3);
-            target.TakeBreakDamage(battleUnitBuf.stack, 0, null, (AtkResist)3, 0);
         }
     }
-
     public class DiceCardAbility_Poise4 : DiceCardAbilityBase
     {
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                };
+            }
+        }
         public static string Desc = "[적중] 호흡 4 얻음";
         public override void OnSucceedAttack()
         {
@@ -520,26 +506,42 @@ namespace BladeLineage
             BattleUnitBuf_Poise.AddPoise(base.owner, 4);
         }
     }
-    
     public class DiceCardAbility_Poise5 : DiceCardAbilityBase
     {
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                };
+            }
+        }
         public static string Desc = "[적중] 호흡 5 얻음";
-
         public override void OnSucceedAttack()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
             BattleUnitBuf_Poise.AddPoise(base.owner, 5);
         }
     }
-
-    public class DiceCardAbility_Poise4onWinParrying : DiceCardAbilityBase
+    public class DiceCardAbility_Poise5onWinParrying : DiceCardAbilityBase
     {
-        public static string Desc = "[합 승리] 호흡 4 얻음";
-
+        public override string[] Keywords
+        {
+            get
+            {
+                return new string[]
+                {
+                    "Poise_Buf",
+                };
+            }
+        }
+        public static string Desc = "[합 승리] 호흡 5 얻음";
         public override void OnWinParrying()
         {
             var battleUnitBuf = base.owner.bufListDetail.GetActivatedBufList().Find((BattleUnitBuf x) => x is BattleUnitBuf_Poise);
-            BattleUnitBuf_Poise.AddPoise(base.owner, 4);
+            BattleUnitBuf_Poise.AddPoise(base.owner, 5);
         }
     }
 
@@ -570,35 +572,31 @@ namespace BladeLineage
             this.stack = 0;
         }
     }
-
-public class BattleUnitBuf_SwordPlayPowerUp2 : BattleUnitBuf // 본국검 자법전수
-{
-    protected override string keywordId => "SwordPlay2";
-
-    public override void OnRoundEnd()
+    public class BattleUnitBuf_SwordPlayPowerUp2 : BattleUnitBuf // 본국검 자법전수
     {
-        this.Destroy();
-    }
+        protected override string keywordId => "SwordPlay2";
 
-    public override void BeforeRollDice(BattleDiceBehavior behavior)
-    {
-        if (behavior.Detail != BehaviourDetail.Slash && behavior.Detail != BehaviourDetail.Penetrate) return;
-        behavior.ApplyDiceStatBonus(new DiceStatBonus
+        public override void OnRoundEnd()
         {
-            power = 2
-        });
-    }
-
-    public override void Init(BattleUnitModel owner)
-    {
-        base.Init(owner);
-        typeof(BattleUnitBuf).GetField("_bufIcon", AccessTools.all).SetValue(this, BladeLineageInit.ArtWorks["SwordPlay2"]);
-        typeof(BattleUnitBuf).GetField("_iconInit", AccessTools.all).SetValue(this, true);
-        this.stack = 0;
+            this.Destroy();
+        }
+        public override void BeforeRollDice(BattleDiceBehavior behavior)
+        {
+            if (behavior.Detail != BehaviourDetail.Slash && behavior.Detail != BehaviourDetail.Penetrate) return;
+            behavior.ApplyDiceStatBonus(new DiceStatBonus
+            {
+                power = 2
+            });
+        }
+        public override void Init(BattleUnitModel owner)
+        {
+            base.Init(owner);
+            typeof(BattleUnitBuf).GetField("_bufIcon", AccessTools.all).SetValue(this, BladeLineageInit.ArtWorks["SwordPlay2"]);
+            typeof(BattleUnitBuf).GetField("_iconInit", AccessTools.all).SetValue(this, true);
+            this.stack = 0;
         }
     }
-
-public class BattleUnitBuf_Poise : BattleUnitBuf
+    public class BattleUnitBuf_Poise : BattleUnitBuf // 호흡
     {
         protected override string keywordId => "Poise_Buf";
         public override void OnRoundEnd()
@@ -614,7 +612,6 @@ public class BattleUnitBuf_Poise : BattleUnitBuf
                 this.Destroy();
             }
         }
-
         public override void BeforeGiveDamage(BattleDiceBehavior behavior)
         {
             base.BeforeGiveDamage(behavior);
@@ -625,7 +622,6 @@ public class BattleUnitBuf_Poise : BattleUnitBuf
             });
             this.stack--;
         }
-
         public static BattleUnitBuf_Poise IshaveBuf(BattleUnitModel target, bool findready = false)
         {
             foreach (var battleUnitBuf in target.bufListDetail.GetActivatedBufList())
@@ -648,7 +644,6 @@ public class BattleUnitBuf_Poise : BattleUnitBuf
             }
             return null;
         }
-
         public static void AddPoise(BattleUnitModel target, int stack)
         {
             var battleUnitBufPoise = BattleUnitBuf_Poise.IshaveBuf(target, true);
@@ -668,12 +663,42 @@ public class BattleUnitBuf_Poise : BattleUnitBuf
                 target.bufListDetail.AddBuf(battleUnitBufPoise2);
             }
         }
-
         public override void Init(BattleUnitModel owner)
         {
             base.Init(owner);
             typeof(BattleUnitBuf).GetField("_bufIcon", AccessTools.all).SetValue(this, BladeLineageInit.ArtWorks["Poise"]);
             typeof(BattleUnitBuf).GetField("_iconInit", AccessTools.all).SetValue(this, true);
+        }
+    }
+    public class DiceCardPriority_Emotion5 : DiceCardPriorityBase
+    {
+        public override int GetPriorityBonus(BattleUnitModel owner)
+        {
+            return owner.emotionDetail.EmotionLevel >= 5 ? 1 : 0;
+        }
+    }
+    public class DiceCardPriority_PlayPoint2 : DiceCardPriorityBase
+    {
+        public override int GetPriorityBonus(BattleUnitModel owner)
+        {
+            var num = owner.cardSlotDetail.PlayPoint - owner.cardSlotDetail.ReservedPlayPoint;
+            return num <= 2 ? 1 : 0;
+        }
+    }
+    public class DiceCardPriority_OnHand3 : DiceCardPriorityBase
+    {
+        public override int GetPriorityBonus(BattleUnitModel owner)
+        {
+            var num = owner.allyCardDetail.GetHand().Count;
+            return num <= 2 ? 1 : 0;
+        }
+    }
+    public class DiceCardPriority_BreakUnderHalf : DiceCardPriorityBase
+    {
+        public override int GetPriorityBonus(BattleUnitModel owner)
+        {
+            var flag1 = owner.breakDetail.breakGauge <= owner.MaxBreakLife / 2;
+            return flag1 ? 1 : 0;
         }
     }
 }
